@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.http import HttpResponseRedirect
 # <HINT> Import any new Models here
-from .models import Course, Enrollment, Submission, Choice
+from .models import Course, Enrollment, Submission, Choice, Question
 from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
@@ -140,7 +140,6 @@ def submit(request, course_id):
     for checker in checkers:
        choice = Choice.objects.get(id= int(checker))
        submission.choices.add(choice)
-    answers = extract_answers(request)
     return HttpResponseRedirect(reverse(viewname='onlinecourse:show_exam_result', kwargs={"course_id":course_id, "submission_id":submission.id}))
 
 # <HINT> Create an exam result view to check if learner passed exam and show their question results and result for each question,
@@ -151,18 +150,20 @@ def submit(request, course_id):
         # Calculate the total score
 def show_exam_result(request, course_id, submission_id):
     context ={}
-    total = 10
-    choice_ids =[1,2,3]
-    # submission = Submission.objects.get(id=submission_id)
-    # submission = Submission.objects.get(id=28)
-    # print(submission.choice_set.all())
-    # choice_ids = submission.objects.filter()
-    # for choice in choice_ids:
-    #     if choice.is_correct == True:
-    #         total = total + choice.question.grade
+    total = 0
+    full_score = 0
+    submission = Submission.objects.get(id=submission_id)
+    choices = submission.choices.all()
+    course_questions = Course.objects.get(id=course_id).question_set.all()
+    for question in course_questions:
+         if question.is_get_score(choices.filter(question=question.id).values_list('pk')):
+            total = total+ question.grade
+         full_score = full_score+ question.grade
+
     context['course'] = Course.objects.get(id=course_id)
-    context['selected_ids'] = choice_ids
-    context['grade'] = total
+    context['selected_ids'] = choices.values_list('pk',flat=True)
+    context['grade'] = int((total/full_score)*100)
+
     return render(request, 'onlinecourse/exam_result_bootstrap.html', context)
 
 
